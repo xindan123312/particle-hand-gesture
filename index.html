@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 粒子手势交互系统</title>
+    <title>陈奇峰 Demo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #111; }
         canvas { display: block; }
         #webcam-video { 
+            /* 隐藏摄像头预览，但 MediaPipe 仍需要它来处理帧 */
             position: absolute;
             top: 0;
             left: 0;
             visibility: hidden;
             z-index: -1; 
-            transform: scaleX(-1); 
         }
         #fullscreen-btn {
             position: absolute;
@@ -33,6 +33,7 @@
             z-index: 1000;
             backdrop-filter: blur(5px);
         }
+        /* 样式化 dat.GUI 使其更现代 */
         .dg.main {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             opacity: 0.9;
@@ -50,15 +51,13 @@
         let scene, camera, renderer, particles, videoElement;
         let gui, guiControls;
         let hands;
-        let particleCount = 10000; 
+        let particleCount = 50000; 
         let particlePositions; 
-        
-        let currentModel = 'heart'; // 强制默认爱心模型
         
         // --- 核心控制参数 ---
         guiControls = {
             particleColor: '#ff9900', 
-            modelType: 'heart', 
+            modelType: 'heart',      
             particleSize: 0.02,
             fullScreen: () => {
                 if (!document.fullscreenElement) {
@@ -71,9 +70,10 @@
 
         // --- 初始化函数 ---
         function init() {
+            // 1. 设置 Three.js 场景
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.z = 8; 
+            camera.position.z = 8; // **【尺寸回调】相机后移到 z=8，适中距离**
             
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -81,10 +81,16 @@
             renderer.setClearColor(0x111111, 1); 
             document.body.appendChild(renderer.domElement);
 
+            // 2. 初始化粒子系统
             initializeParticles();
+            
+            // 3. 设置 UI 面板
             setupGUI();
+            
+            // 4. 初始化 MediaPipe 和摄像头
             setupMediaPipe();
 
+            // 5. 事件监听
             window.addEventListener('resize', onWindowResize, false);
             document.getElementById('fullscreen-btn').addEventListener('click', guiControls.fullScreen);
 
@@ -96,8 +102,7 @@
             const geometry = new THREE.BufferGeometry();
             particlePositions = new Float32Array(particleCount * 3);
             
-            // 初始生成爱心
-            generatePoints('heart'); 
+            generatePoints(guiControls.modelType); 
 
             geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
@@ -113,40 +118,56 @@
             scene.add(particles);
         }
 
-        // --- 模型点集生成函数 (仅保留爱心) ---
+        // --- 模型点集生成函数 (已实现 'heart' 模型) ---
         function generatePoints(type) {
-            // **注意：在手势逻辑中，这个函数不再被调用，但保留其定义**
-            if (type === currentModel && particles) return; 
-
             console.log(`正在生成 ${type} 模型点集...`);
-            currentModel = type;
             
             if (!particlePositions || particlePositions.length !== particleCount * 3) {
                 particlePositions = new Float32Array(particleCount * 3);
             }
             
             let posIndex = 0; 
-            const customScale = 3.0; 
 
-            // 仅实现 Heart 模型
-            if (type === 'heart') {
-                for (let i = 0; i < particleCount; i++) {
-                    const t = Math.random() * 2 * Math.PI; 
-                    const u = Math.random() * Math.PI;     
-                    const r = 0.8 + 0.2 * Math.random(); 
-                    const x_base = 16 * Math.pow(Math.sin(t), 3);
-                    const y_base = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-                    const Px = r * Math.sin(u) * x_base / 20;
-                    const Py = r * (y_base / 20); 
-                    const Pz = r * Math.cos(u) * x_base / 20;
-                    particlePositions[posIndex++] = Px * customScale; 
-                    particlePositions[posIndex++] = Py * customScale;
-                    particlePositions[posIndex++] = Pz * customScale;
-                }
-            } else {
-                // 如果请求其他模型，则重新生成爱心 (或者直接使用旧爱心)
-                generatePoints('heart');
-                return;
+            switch (type) {
+                case 'heart':
+                    const scale = 1.0;
+                    const customScale = 3.0; // **【尺寸回调】模型基础尺寸回调到 3.0**
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const t = Math.random() * 2 * Math.PI; 
+                        const u = Math.random() * Math.PI;     
+                        const r = 0.8 + 0.2 * Math.random(); 
+
+                        const x_base = 16 * Math.pow(Math.sin(t), 3);
+                        const y_base = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                        
+                        const Px = scale * r * Math.sin(u) * x_base / 20;
+                        const Py = scale * r * (y_base / 20); 
+                        const Pz = scale * r * Math.cos(u) * x_base / 20;
+
+                        // 应用新的缩放系数 (3.0)
+                        particlePositions[posIndex++] = Px * customScale; 
+                        particlePositions[posIndex++] = Py * customScale;
+                        particlePositions[posIndex++] = Pz * customScale;
+                    }
+                    break;
+                    
+                case 'flower':
+                case 'saturn':
+                case 'buddha':
+                case 'firework':
+                default:
+                    const radius = 1;
+                    for (let i = 0; i < particleCount; i++) {
+                        const r = radius * Math.cbrt(Math.random());
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(Math.random() * 2 - 1);
+                        
+                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.cos(theta);
+                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.sin(theta);
+                        particlePositions[posIndex++] = r * Math.cos(phi);
+                    }
+                    break;
             }
 
             if (particles) {
@@ -163,9 +184,12 @@
                 particles.material.color.set(value);
             }).name('粒子颜色');
 
-            // 仅保留爱心选项
             gui.add(guiControls, 'modelType', {
                 '爱心 (Heart)': 'heart',
+                '花朵 (Flower)': 'flower',
+                '土星 (Saturn)': 'saturn',
+                '佛像 (Buddha)': 'buddha', 
+                '烟花 (Firework)': 'firework'
             }).onChange(generatePoints).name('粒子模型');
 
             gui.add(guiControls, 'particleSize', 0.005, 0.1).step(0.001).onChange((value) => {
@@ -194,77 +218,64 @@
             }
 
             hands = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`; 
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
             }});
             
             hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 0, 
+                modelComplexity: 1, 
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
 
             hands.onResults(onResults); 
             
-            try {
-                await hands.initialize(); 
-            } catch (error) {
-                console.error("MediaPipe initialization failed:", error);
-            }
-
             const sendFrameToMediaPipe = async () => {
                 if (videoElement.readyState >= 2) { 
-                    try {
-                        // 保留 iOS/WebKit 兼容性修复
-                        if (!hands.options.runningMode) {
-                           await hands.initialize(); 
-                        }
-                        await hands.send({image: videoElement}); 
-                    } catch (e) {
-                        console.warn("MediaPipe send failed, attempting re-initialization:", e);
-                    }
+                    await hands.send({image: videoElement}); 
                 }
                 requestAnimationFrame(sendFrameToMediaPipe);
             };
             sendFrameToMediaPipe(); 
         }
 
-        // --- MediaPipe 结果处理 (仅缩放爱心) ---
+        // --- MediaPipe 结果处理 (核心交互逻辑) ---
         function onResults(results) {
             if (results.multiHandLandmarks && results.multiHandedness.length > 0) {
                 
                 const landmarks = results.multiHandLandmarks[0]; 
+                
                 const thumbTip = landmarks[4]; 
                 const indexTip = landmarks[8];
                 
+                // 计算捏合距离（归一化坐标 0-1）
                 const distance = Math.sqrt(
                     Math.pow(thumbTip.x - indexTip.x, 2) +
                     Math.pow(thumbTip.y - indexTip.y, 2)
                 );
 
-                const minDistance = 0.10; 
-                const maxDistance = 0.35; 
+                const minDistance = 0.05; 
+                const maxDistance = 0.25; 
                 
                 const normalizedFactor = THREE.MathUtils.clamp(
-                    (distance - minDistance) / (maxDistance - minDistance),
+                    (distance - minDistance) / (maxDistance - minDistance), 
                     0, 
                     1
                 );
                 
-                // **【核心修复】移除模型切换，只进行缩放**
                 updateParticles(normalizedFactor);
 
             } else {
-                // 无手势时，恢复中立缩放
                 updateParticles(0.5); 
             }
         }
         
         // --- 粒子状态实时更新函数 (捏合手势驱动) ---
         function updateParticles(factor) {
+            // 动态缩放范围保持 1.0 到 3.0 倍
             const targetScale = 1.0 + 2.0 * factor; 
             
-            particles.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.2);
+            particles.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
         }
 
         // --- 窗口重置处理 ---
@@ -285,6 +296,7 @@
 
         // --- 启动应用 ---
         init();
+
     </script>
 </body>
 </html>
