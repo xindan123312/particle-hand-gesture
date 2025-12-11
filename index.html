@@ -17,7 +17,6 @@
             left: 0;
             visibility: hidden;
             z-index: -1; 
-            /* 兼容性修复 */
             transform: scaleX(-1); 
         }
         #fullscreen-btn {
@@ -54,12 +53,12 @@
         let particleCount = 10000; 
         let particlePositions; 
         
-        let currentModel = 'dispersed'; 
+        let currentModel = 'heart'; // 强制默认爱心模型
         
         // --- 核心控制参数 ---
         guiControls = {
             particleColor: '#ff9900', 
-            modelType: 'dispersed', 
+            modelType: 'heart', 
             particleSize: 0.02,
             fullScreen: () => {
                 if (!document.fullscreenElement) {
@@ -97,7 +96,8 @@
             const geometry = new THREE.BufferGeometry();
             particlePositions = new Float32Array(particleCount * 3);
             
-            generatePoints(guiControls.modelType); 
+            // 初始生成爱心
+            generatePoints('heart'); 
 
             geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
@@ -113,8 +113,9 @@
             scene.add(particles);
         }
 
-        // --- 模型点集生成函数 (手势模型替代) ---
+        // --- 模型点集生成函数 (仅保留爱心) ---
         function generatePoints(type) {
+            // **注意：在手势逻辑中，这个函数不再被调用，但保留其定义**
             if (type === currentModel && particles) return; 
 
             console.log(`正在生成 ${type} 模型点集...`);
@@ -127,67 +128,25 @@
             let posIndex = 0; 
             const customScale = 3.0; 
 
-            switch (type) {
-                case 'heart':
-                    for (let i = 0; i < particleCount; i++) {
-                        const t = Math.random() * 2 * Math.PI; 
-                        const u = Math.random() * Math.PI;     
-                        const r = 0.8 + 0.2 * Math.random(); 
-                        const x_base = 16 * Math.pow(Math.sin(t), 3);
-                        const y_base = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-                        const Px = r * Math.sin(u) * x_base / 20;
-                        const Py = r * (y_base / 20); 
-                        const Pz = r * Math.cos(u) * x_base / 20;
-                        particlePositions[posIndex++] = Px * customScale; 
-                        particlePositions[posIndex++] = Py * customScale;
-                        particlePositions[posIndex++] = Pz * customScale;
-                    }
-                    break;
-                    
-                case 'dispersed':
-                    // 【无手势/中立】粒子散开 (大型随机球体)
-                    const radius = 5; 
-                    for (let i = 0; i < particleCount; i++) {
-                        const r = radius * Math.cbrt(Math.random());
-                        const theta = Math.random() * Math.PI * 2;
-                        const phi = Math.acos(Math.random() * 2 - 1);
-                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.cos(theta) * 0.5; 
-                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.sin(theta) * 0.5;
-                        particlePositions[posIndex++] = r * Math.cos(phi) * 0.5;
-                    }
-                    break;
-
-                case 'text_bayang':
-                    // 【张开手/'白杨'】环形 Torus 模拟开放姿态
-                    const torusRadius = 3.5; 
-                    const tubeRadius = 0.4;
-                    for (let i = 0; i < particleCount; i++) {
-                        const u = Math.random() * Math.PI * 2;
-                        const v = Math.random() * Math.PI * 2;
-                        const r = torusRadius + tubeRadius * Math.cos(v);
-                        particlePositions[posIndex++] = r * Math.cos(u) * 0.5; 
-                        particlePositions[posIndex++] = r * Math.sin(u) * 0.5;
-                        particlePositions[posIndex++] = tubeRadius * Math.sin(v) * 0.5;
-                    }
-                    break;
-
-                case 'text_woaini':
-                    // 【捏合/'我爱你'】螺旋线 Spiral 模拟紧凑感
-                    const spiralLength = 10;
-                    const spiralTurns = 10;
-                    const spiralRadius = 1.0;
-                    for (let i = 0; i < particleCount; i++) {
-                        const t = Math.random() * spiralTurns * Math.PI * 2;
-                        const r = spiralRadius * (1 - t / (spiralTurns * Math.PI * 2)) * Math.random();
-                        particlePositions[posIndex++] = r * Math.cos(t) * 0.8; 
-                        particlePositions[posIndex++] = r * Math.sin(t) * 0.8;
-                        particlePositions[posIndex++] = (t / (spiralTurns * Math.PI * 2)) * spiralLength * 0.1 - 0.5; 
-                    }
-                    break;
-                
-                default:
-                    generatePoints('dispersed');
-                    return;
+            // 仅实现 Heart 模型
+            if (type === 'heart') {
+                for (let i = 0; i < particleCount; i++) {
+                    const t = Math.random() * 2 * Math.PI; 
+                    const u = Math.random() * Math.PI;     
+                    const r = 0.8 + 0.2 * Math.random(); 
+                    const x_base = 16 * Math.pow(Math.sin(t), 3);
+                    const y_base = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                    const Px = r * Math.sin(u) * x_base / 20;
+                    const Py = r * (y_base / 20); 
+                    const Pz = r * Math.cos(u) * x_base / 20;
+                    particlePositions[posIndex++] = Px * customScale; 
+                    particlePositions[posIndex++] = Py * customScale;
+                    particlePositions[posIndex++] = Pz * customScale;
+                }
+            } else {
+                // 如果请求其他模型，则重新生成爱心 (或者直接使用旧爱心)
+                generatePoints('heart');
+                return;
             }
 
             if (particles) {
@@ -204,10 +163,8 @@
                 particles.material.color.set(value);
             }).name('粒子颜色');
 
+            // 仅保留爱心选项
             gui.add(guiControls, 'modelType', {
-                '手势控制 - 散开 (Dispersed)': 'dispersed', 
-                '手势控制 - 白杨 (Torus)': 'text_bayang', 
-                '手势控制 - 我爱你 (Spiral)': 'text_woaini', 
                 '爱心 (Heart)': 'heart',
             }).onChange(generatePoints).name('粒子模型');
 
@@ -258,6 +215,7 @@
             const sendFrameToMediaPipe = async () => {
                 if (videoElement.readyState >= 2) { 
                     try {
+                        // 保留 iOS/WebKit 兼容性修复
                         if (!hands.options.runningMode) {
                            await hands.initialize(); 
                         }
@@ -271,7 +229,7 @@
             sendFrameToMediaPipe(); 
         }
 
-        // --- MediaPipe 结果处理 (核心交互逻辑 - 手势切换模型) ---
+        // --- MediaPipe 结果处理 (仅缩放爱心) ---
         function onResults(results) {
             if (results.multiHandLandmarks && results.multiHandedness.length > 0) {
                 
@@ -293,23 +251,11 @@
                     1
                 );
                 
-                // --- 新的手势状态判断逻辑 ---
-                if (normalizedFactor > 0.8) {
-                    // 【张开手 (扩散)】：模拟 '白杨'
-                    generatePoints('text_bayang');
-                } else if (normalizedFactor < 0.2) {
-                    // 【捏合手 (收缩)】：模拟 '我爱你'
-                    generatePoints('text_woaini');
-                } else {
-                    // 【中立区】：粒子散开
-                    generatePoints('dispersed');
-                }
-
+                // **【核心修复】移除模型切换，只进行缩放**
                 updateParticles(normalizedFactor);
 
             } else {
-                // 【无手势】：粒子散开
-                generatePoints('dispersed'); 
+                // 无手势时，恢复中立缩放
                 updateParticles(0.5); 
             }
         }
