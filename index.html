@@ -51,13 +51,13 @@
         let scene, camera, renderer, particles, videoElement;
         let gui, guiControls;
         let hands;
-        let particleCount = 50000; 
-        let particlePositions; 
+        let particleCount = 50000;
+        let particlePositions;
         
         // --- 核心控制参数 ---
         guiControls = {
-            particleColor: '#ff9900', 
-            modelType: 'heart',      
+            particleColor: '#ff9900', // 初始粒子颜色
+            modelType: 'heart',       // 初始模型
             particleSize: 0.02,
             fullScreen: () => {
                 if (!document.fullscreenElement) {
@@ -73,12 +73,12 @@
             // 1. 设置 Three.js 场景
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.z = 8; // **【尺寸回调】相机后移到 z=8，适中距离**
+            camera.position.z = 3;
             
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x111111, 1); 
+            renderer.setClearColor(0x111111, 1);
             document.body.appendChild(renderer.domElement);
 
             // 2. 初始化粒子系统
@@ -94,7 +94,7 @@
             window.addEventListener('resize', onWindowResize, false);
             document.getElementById('fullscreen-btn').addEventListener('click', guiControls.fullScreen);
 
-            animate(); 
+            animate();
         }
 
         // --- 粒子初始化与几何体生成 ---
@@ -102,76 +102,43 @@
             const geometry = new THREE.BufferGeometry();
             particlePositions = new Float32Array(particleCount * 3);
             
-            generatePoints(guiControls.modelType); 
+            // 初始生成点集 (默认爱心模型)
+            generatePoints('heart'); 
 
             geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
             const material = new THREE.PointsMaterial({
                 color: guiControls.particleColor,
                 size: guiControls.particleSize,
-                blending: THREE.AdditiveBlending, 
+                blending: THREE.AdditiveBlending,
                 transparent: true,
-                depthWrite: false 
+                depthWrite: false
             });
 
-            particles = new THREE.Points(geometry, material); 
+            particles = new THREE.Points(geometry, material);
             scene.add(particles);
         }
 
-        // --- 模型点集生成函数 (已实现 'heart' 模型) ---
+        // --- 模型点集生成函数 (占位符) ---
         function generatePoints(type) {
             console.log(`正在生成 ${type} 模型点集...`);
+            // 此处需要实现各种模型的数学生成逻辑 (如爱心参数方程) 或 GLTF 顶点提取
             
-            if (!particlePositions || particlePositions.length !== particleCount * 3) {
-                particlePositions = new Float32Array(particleCount * 3);
+            // 示例：简单球形点阵
+            const radius = 1;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const r = radius * Math.cbrt(Math.random()); // 随机半径
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                
+                particlePositions[i3]     = r * Math.sin(phi) * Math.cos(theta);
+                particlePositions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                particlePositions[i3 + 2] = r * Math.cos(phi);
             }
             
-            let posIndex = 0; 
-
-            switch (type) {
-                case 'heart':
-                    const scale = 1.0;
-                    const customScale = 3.0; // **【尺寸回调】模型基础尺寸回调到 3.0**
-                    
-                    for (let i = 0; i < particleCount; i++) {
-                        const t = Math.random() * 2 * Math.PI; 
-                        const u = Math.random() * Math.PI;     
-                        const r = 0.8 + 0.2 * Math.random(); 
-
-                        const x_base = 16 * Math.pow(Math.sin(t), 3);
-                        const y_base = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-                        
-                        const Px = scale * r * Math.sin(u) * x_base / 20;
-                        const Py = scale * r * (y_base / 20); 
-                        const Pz = scale * r * Math.cos(u) * x_base / 20;
-
-                        // 应用新的缩放系数 (3.0)
-                        particlePositions[posIndex++] = Px * customScale; 
-                        particlePositions[posIndex++] = Py * customScale;
-                        particlePositions[posIndex++] = Pz * customScale;
-                    }
-                    break;
-                    
-                case 'flower':
-                case 'saturn':
-                case 'buddha':
-                case 'firework':
-                default:
-                    const radius = 1;
-                    for (let i = 0; i < particleCount; i++) {
-                        const r = radius * Math.cbrt(Math.random());
-                        const theta = Math.random() * Math.PI * 2;
-                        const phi = Math.acos(Math.random() * 2 - 1);
-                        
-                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.cos(theta);
-                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.sin(theta);
-                        particlePositions[posIndex++] = r * Math.cos(phi);
-                    }
-                    break;
-            }
-
             if (particles) {
-                particles.geometry.attributes.position.needsUpdate = true;
+                 particles.geometry.attributes.position.needsUpdate = true;
             }
         }
 
@@ -180,10 +147,12 @@
             gui = new dat.GUI();
             gui.domElement.id = 'gui';
             
+            // 颜色选择器
             gui.addColor(guiControls, 'particleColor').onChange((value) => {
                 particles.material.color.set(value);
             }).name('粒子颜色');
 
+            // 模型选择器
             gui.add(guiControls, 'modelType', {
                 '爱心 (Heart)': 'heart',
                 '花朵 (Flower)': 'flower',
@@ -192,10 +161,12 @@
                 '烟花 (Firework)': 'firework'
             }).onChange(generatePoints).name('粒子模型');
 
+            // 粒子大小
             gui.add(guiControls, 'particleSize', 0.005, 0.1).step(0.001).onChange((value) => {
                 particles.material.size = value;
             }).name('粒子大小');
 
+            // 全屏按钮 (虽然在外部有，但也可以在 GUI 中添加)
             gui.add(guiControls, 'fullScreen').name('全屏控制');
 
             gui.open();
@@ -205,6 +176,7 @@
         async function setupMediaPipe() {
             videoElement = document.getElementById('webcam-video');
             
+            // 启动摄像头
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 videoElement.srcObject = stream;
@@ -213,38 +185,42 @@
                 });
                 videoElement.play();
             } catch (err) {
-                console.error("无法访问摄像头: ", err); 
+                console.error("无法访问摄像头: ", err);
                 return;
             }
 
+            // 初始化 Hands
             hands = new Hands({locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
             }});
             
             hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 1, 
+                modelComplexity: 1,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
 
-            hands.onResults(onResults); 
+            hands.onResults(onResults);
             
+            // 持续向 MediaPipe 发送视频帧
             const sendFrameToMediaPipe = async () => {
-                if (videoElement.readyState >= 2) { 
-                    await hands.send({image: videoElement}); 
+                if (videoElement.readyState >= 2) { // 确保视频已加载足够的帧
+                    await hands.send({image: videoElement});
                 }
                 requestAnimationFrame(sendFrameToMediaPipe);
             };
-            sendFrameToMediaPipe(); 
+            sendFrameToMediaPipe();
         }
 
         // --- MediaPipe 结果处理 (核心交互逻辑) ---
         function onResults(results) {
             if (results.multiHandLandmarks && results.multiHandedness.length > 0) {
                 
-                const landmarks = results.multiHandLandmarks[0]; 
+                // 仅处理第一只手
+                const landmarks = results.multiHandLandmarks[0];
                 
+                // 关键点：拇指尖 (4) 和食指尖 (8)
                 const thumbTip = landmarks[4]; 
                 const indexTip = landmarks[8];
                 
@@ -252,36 +228,48 @@
                 const distance = Math.sqrt(
                     Math.pow(thumbTip.x - indexTip.x, 2) +
                     Math.pow(thumbTip.y - indexTip.y, 2)
+                    // MediaPipe 提供的 z 轴通常噪声较大，此处简化为 2D 距离
                 );
 
-                const minDistance = 0.05; 
-                const maxDistance = 0.25; 
+                // 映射距离到粒子扩散/缩放因子
+                // 假设：距离 0.05 对应收缩，距离 0.25 对应扩散
+                const minDistance = 0.05;
+                const maxDistance = 0.25;
                 
+                // 将距离标准化到 0.0 到 1.0 范围 (0.0 = 收缩，1.0 = 扩散)
                 const normalizedFactor = THREE.MathUtils.clamp(
                     (distance - minDistance) / (maxDistance - minDistance), 
                     0, 
                     1
                 );
                 
+                // 调用粒子更新函数
                 updateParticles(normalizedFactor);
 
             } else {
-                updateParticles(0.5); 
+                // 如果没有检测到手，粒子逐渐恢复默认状态
+                updateParticles(0.5); // 恢复到中等状态
             }
         }
         
-        // --- 粒子状态实时更新函数 (捏合手势驱动) ---
+        // --- 粒子状态实时更新函数 ---
         function updateParticles(factor) {
-            // 动态缩放范围保持 1.0 到 3.0 倍
-            const targetScale = 1.0 + 2.0 * factor; 
+            // Factor 0.0: 收缩 / Factor 1.0: 扩散
+            const maxDisplacement = 5.0 * factor;
             
+            // 简单地缩放整个粒子系统
+            const targetScale = 0.5 + 1.5 * factor; // 缩放范围 0.5 到 2.0
+            
+            // 缓动动画让缩放更平滑 (可选)
             particles.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+
+            // 也可以在这里基于 factor 修改粒子几何体的位置，实现更复杂的扩散效果
         }
 
         // --- 窗口重置处理 ---
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix(); 
+            camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
@@ -289,6 +277,7 @@
         function animate() {
             requestAnimationFrame(animate);
             
+            // 动画效果 (例如自转)
             particles.rotation.y += 0.005;
 
             renderer.render(scene, camera);
