@@ -133,7 +133,7 @@
             switch (type) {
                 case 'heart':
                     const scale = 1.0;
-                    const customScale = 3.0; 
+                    const customScale = 3.0; // 模型基础尺寸 (适中)
                     
                     for (let i = 0; i < particleCount; i++) {
                         const t = Math.random() * 2 * Math.PI; 
@@ -202,7 +202,7 @@
             gui.open();
         }
 
-        // --- MediaPipe 手势追踪设置 (已更新初始化逻辑) ---
+        // --- MediaPipe 手势追踪设置 (已更新初始化逻辑和 CDN 路径) ---
         async function setupMediaPipe() {
             videoElement = document.getElementById('webcam-video');
             
@@ -220,7 +220,8 @@
 
             // 初始化 Hands
             hands = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
+                // 【CDN 路径修复】采用更通用的版本路径，增强兼容性
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`; 
             }});
             
             hands.setOptions({
@@ -244,8 +245,7 @@
             const sendFrameToMediaPipe = async () => {
                 if (videoElement.readyState >= 2) { 
                     try {
-                        // **【最终修复】如果 MediaPipe 状态丢失，尝试重新初始化**
-                        // 这是解决 iOS/WebKit Web Worker 问题的尝试
+                        // 如果 MediaPipe 状态丢失，尝试重新初始化 (iOS 兼容性修复)
                         if (!hands.options.runningMode) {
                            await hands.initialize(); 
                         }
