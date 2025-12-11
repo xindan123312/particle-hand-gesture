@@ -73,7 +73,7 @@
             // 1. 设置 Three.js 场景
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.z = 8; // **【尺寸回调】相机后移到 z=8，适中距离**
+            camera.position.z = 8; // 相机距离 (适中)
             
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -131,7 +131,7 @@
             switch (type) {
                 case 'heart':
                     const scale = 1.0;
-                    const customScale = 3.0; // **【尺寸回调】模型基础尺寸回调到 3.0**
+                    const customScale = 3.0; // 模型基础尺寸 (适中)
                     
                     for (let i = 0; i < particleCount; i++) {
                         const t = Math.random() * 2 * Math.PI; 
@@ -145,7 +145,7 @@
                         const Py = scale * r * (y_base / 20); 
                         const Pz = scale * r * Math.cos(u) * x_base / 20;
 
-                        // 应用新的缩放系数 (3.0)
+                        // 应用缩放系数 (3.0)
                         particlePositions[posIndex++] = Px * customScale; 
                         particlePositions[posIndex++] = Py * customScale;
                         particlePositions[posIndex++] = Pz * customScale;
@@ -223,7 +223,7 @@
             
             hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 1, 
+                modelComplexity: 0, // **【优化 1】降低复杂度，提高手机帧率和响应速度**
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
@@ -254,8 +254,9 @@
                     Math.pow(thumbTip.y - indexTip.y, 2)
                 );
 
-                const minDistance = 0.05; 
-                const maxDistance = 0.25; 
+                // **【优化 2】调整手势阈值，更容易触发缩小**
+                const minDistance = 0.10; // 稍微靠近就算捏合 (易于缩小)
+                const maxDistance = 0.35; // 扩大张开范围
                 
                 const normalizedFactor = THREE.MathUtils.clamp(
                     (distance - minDistance) / (maxDistance - minDistance), 
@@ -272,10 +273,11 @@
         
         // --- 粒子状态实时更新函数 (捏合手势驱动) ---
         function updateParticles(factor) {
-            // 动态缩放范围保持 1.0 到 3.0 倍
+            // 动态缩放范围 1.0 到 3.0 倍
             const targetScale = 1.0 + 2.0 * factor; 
             
-            particles.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+            // **【优化 3】提高缓动因子，反应更快**
+            particles.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.2);
         }
 
         // --- 窗口重置处理 ---
