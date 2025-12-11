@@ -5,20 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D 粒子手势交互系统</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #111; }
         canvas { display: block; }
         #webcam-video { 
-            /* 隐藏摄像头预览 */
             position: absolute;
             top: 0;
             left: 0;
             visibility: hidden;
             z-index: -1; 
-            /* 强制镜像视频流，解决部分兼容性问题 */
+            /* 兼容性修复 */
             transform: scaleX(-1); 
         }
         #fullscreen-btn {
@@ -35,7 +34,6 @@
             z-index: 1000;
             backdrop-filter: blur(5px);
         }
-        /* 样式化 dat.GUI 使其更现代 */
         .dg.main {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             opacity: 0.9;
@@ -53,13 +51,15 @@
         let scene, camera, renderer, particles, videoElement;
         let gui, guiControls;
         let hands;
-        let particleCount = 10000; // 优化性能
+        let particleCount = 10000; 
         let particlePositions; 
+        
+        let currentModel = 'dispersed'; 
         
         // --- 核心控制参数 ---
         guiControls = {
             particleColor: '#ff9900', 
-            modelType: 'heart',      
+            modelType: 'dispersed', 
             particleSize: 0.02,
             fullScreen: () => {
                 if (!document.fullscreenElement) {
@@ -72,7 +72,6 @@
 
         // --- 初始化函数 ---
         function init() {
-            // 1. 设置 Three.js 场景
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
             camera.position.z = 8; 
@@ -83,16 +82,10 @@
             renderer.setClearColor(0x111111, 1); 
             document.body.appendChild(renderer.domElement);
 
-            // 2. 初始化粒子系统
             initializeParticles();
-            
-            // 3. 设置 UI 面板
             setupGUI();
-            
-            // 4. 初始化 MediaPipe 和摄像头
             setupMediaPipe();
 
-            // 5. 事件监听
             window.addEventListener('resize', onWindowResize, false);
             document.getElementById('fullscreen-btn').addEventListener('click', guiControls.fullScreen);
 
@@ -120,55 +113,81 @@
             scene.add(particles);
         }
 
-        // --- 模型点集生成函数 (已实现 'heart' 模型) ---
+        // --- 模型点集生成函数 (手势模型替代) ---
         function generatePoints(type) {
+            if (type === currentModel && particles) return; 
+
             console.log(`正在生成 ${type} 模型点集...`);
+            currentModel = type;
             
             if (!particlePositions || particlePositions.length !== particleCount * 3) {
                 particlePositions = new Float32Array(particleCount * 3);
             }
             
             let posIndex = 0; 
+            const customScale = 3.0; 
 
             switch (type) {
                 case 'heart':
-                    const scale = 1.0;
-                    const customScale = 3.0; // 模型基础尺寸 (适中)
-                    
                     for (let i = 0; i < particleCount; i++) {
                         const t = Math.random() * 2 * Math.PI; 
                         const u = Math.random() * Math.PI;     
                         const r = 0.8 + 0.2 * Math.random(); 
-
                         const x_base = 16 * Math.pow(Math.sin(t), 3);
                         const y_base = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-                        
-                        const Px = scale * r * Math.sin(u) * x_base / 20;
-                        const Py = scale * r * (y_base / 20); 
-                        const Pz = scale * r * Math.cos(u) * x_base / 20;
-
+                        const Px = r * Math.sin(u) * x_base / 20;
+                        const Py = r * (y_base / 20); 
+                        const Pz = r * Math.cos(u) * x_base / 20;
                         particlePositions[posIndex++] = Px * customScale; 
                         particlePositions[posIndex++] = Py * customScale;
                         particlePositions[posIndex++] = Pz * customScale;
                     }
                     break;
                     
-                case 'flower':
-                case 'saturn':
-                case 'buddha':
-                case 'firework':
-                default:
-                    const radius = 1;
+                case 'dispersed':
+                    // 【无手势/中立】粒子散开 (大型随机球体)
+                    const radius = 5; 
                     for (let i = 0; i < particleCount; i++) {
                         const r = radius * Math.cbrt(Math.random());
                         const theta = Math.random() * Math.PI * 2;
                         const phi = Math.acos(Math.random() * 2 - 1);
-                        
-                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.cos(theta);
-                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.sin(theta);
-                        particlePositions[posIndex++] = r * Math.cos(phi);
+                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.cos(theta) * 0.5; 
+                        particlePositions[posIndex++] = r * Math.sin(phi) * Math.sin(theta) * 0.5;
+                        particlePositions[posIndex++] = r * Math.cos(phi) * 0.5;
                     }
                     break;
+
+                case 'text_bayang':
+                    // 【张开手/'白杨'】环形 Torus 模拟开放姿态
+                    const torusRadius = 3.5; 
+                    const tubeRadius = 0.4;
+                    for (let i = 0; i < particleCount; i++) {
+                        const u = Math.random() * Math.PI * 2;
+                        const v = Math.random() * Math.PI * 2;
+                        const r = torusRadius + tubeRadius * Math.cos(v);
+                        particlePositions[posIndex++] = r * Math.cos(u) * 0.5; 
+                        particlePositions[posIndex++] = r * Math.sin(u) * 0.5;
+                        particlePositions[posIndex++] = tubeRadius * Math.sin(v) * 0.5;
+                    }
+                    break;
+
+                case 'text_woaini':
+                    // 【捏合/'我爱你'】螺旋线 Spiral 模拟紧凑感
+                    const spiralLength = 10;
+                    const spiralTurns = 10;
+                    const spiralRadius = 1.0;
+                    for (let i = 0; i < particleCount; i++) {
+                        const t = Math.random() * spiralTurns * Math.PI * 2;
+                        const r = spiralRadius * (1 - t / (spiralTurns * Math.PI * 2)) * Math.random();
+                        particlePositions[posIndex++] = r * Math.cos(t) * 0.8; 
+                        particlePositions[posIndex++] = r * Math.sin(t) * 0.8;
+                        particlePositions[posIndex++] = (t / (spiralTurns * Math.PI * 2)) * spiralLength * 0.1 - 0.5; 
+                    }
+                    break;
+                
+                default:
+                    generatePoints('dispersed');
+                    return;
             }
 
             if (particles) {
@@ -186,11 +205,10 @@
             }).name('粒子颜色');
 
             gui.add(guiControls, 'modelType', {
+                '手势控制 - 散开 (Dispersed)': 'dispersed', 
+                '手势控制 - 白杨 (Torus)': 'text_bayang', 
+                '手势控制 - 我爱你 (Spiral)': 'text_woaini', 
                 '爱心 (Heart)': 'heart',
-                '花朵 (Flower)': 'flower',
-                '土星 (Saturn)': 'saturn',
-                '佛像 (Buddha)': 'buddha', 
-                '烟花 (Firework)': 'firework'
             }).onChange(generatePoints).name('粒子模型');
 
             gui.add(guiControls, 'particleSize', 0.005, 0.1).step(0.001).onChange((value) => {
@@ -202,7 +220,7 @@
             gui.open();
         }
 
-        // --- MediaPipe 手势追踪设置 (已更新初始化逻辑和 CDN 路径) ---
+        // --- MediaPipe 手势追踪设置 ---
         async function setupMediaPipe() {
             videoElement = document.getElementById('webcam-video');
             
@@ -218,34 +236,28 @@
                 return;
             }
 
-            // 初始化 Hands
             hands = new Hands({locateFile: (file) => {
-                // 【CDN 路径修复】采用更通用的版本路径，增强兼容性
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`; 
             }});
             
             hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 0, // 降低复杂度
+                modelComplexity: 0, 
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
 
             hands.onResults(onResults); 
             
-            // 确保 MediaPipe 模型在首次加载时完成
             try {
                 await hands.initialize(); 
-                console.log("MediaPipe model initialized successfully.");
             } catch (error) {
                 console.error("MediaPipe initialization failed:", error);
             }
 
-            // 持续向 MediaPipe 发送视频帧
             const sendFrameToMediaPipe = async () => {
                 if (videoElement.readyState >= 2) { 
                     try {
-                        // 如果 MediaPipe 状态丢失，尝试重新初始化 (iOS 兼容性修复)
                         if (!hands.options.runningMode) {
                            await hands.initialize(); 
                         }
@@ -259,16 +271,14 @@
             sendFrameToMediaPipe(); 
         }
 
-        // --- MediaPipe 结果处理 (核心交互逻辑) ---
+        // --- MediaPipe 结果处理 (核心交互逻辑 - 手势切换模型) ---
         function onResults(results) {
             if (results.multiHandLandmarks && results.multiHandedness.length > 0) {
                 
                 const landmarks = results.multiHandLandmarks[0]; 
-                
                 const thumbTip = landmarks[4]; 
                 const indexTip = landmarks[8];
                 
-                // 计算捏合距离（归一化坐标 0-1）
                 const distance = Math.sqrt(
                     Math.pow(thumbTip.x - indexTip.x, 2) +
                     Math.pow(thumbTip.y - indexTip.y, 2)
@@ -278,24 +288,36 @@
                 const maxDistance = 0.35; 
                 
                 const normalizedFactor = THREE.MathUtils.clamp(
-                    (distance - minDistance) / (maxDistance - minDistance), 
+                    (distance - minDistance) / (maxDistance - minDistance),
                     0, 
                     1
                 );
                 
+                // --- 新的手势状态判断逻辑 ---
+                if (normalizedFactor > 0.8) {
+                    // 【张开手 (扩散)】：模拟 '白杨'
+                    generatePoints('text_bayang');
+                } else if (normalizedFactor < 0.2) {
+                    // 【捏合手 (收缩)】：模拟 '我爱你'
+                    generatePoints('text_woaini');
+                } else {
+                    // 【中立区】：粒子散开
+                    generatePoints('dispersed');
+                }
+
                 updateParticles(normalizedFactor);
 
             } else {
+                // 【无手势】：粒子散开
+                generatePoints('dispersed'); 
                 updateParticles(0.5); 
             }
         }
         
         // --- 粒子状态实时更新函数 (捏合手势驱动) ---
         function updateParticles(factor) {
-            // 动态缩放范围 1.0 到 3.0 倍
             const targetScale = 1.0 + 2.0 * factor; 
             
-            // 提高缓动因子，反应更快
             particles.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.2);
         }
 
@@ -317,7 +339,6 @@
 
         // --- 启动应用 ---
         init();
-
     </script>
 </body>
 </html>
